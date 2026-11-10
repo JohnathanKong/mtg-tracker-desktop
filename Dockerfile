@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     qml6-module-qtquick qml6-module-qtquick-controls \
     qml6-module-qtquick-layouts qml6-module-qtquick-window \
     qml6-module-qtquick-dialogs qml6-module-qtquick-templates \
+    qml6-module-qtqml qml6-module-qtqml-models qml6-module-qtqml-workerscript \
     libgl1-mesa-dri libegl1 mesa-utils ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
