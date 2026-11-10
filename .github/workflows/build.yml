@@ -1,31 +1,60 @@
-name: Build Windows desktop app
+name: Build MTG Tracker Desktop
+
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
+
 jobs:
-  windows-native:
+  windows:
+    name: Windows native GUI and packaged executable
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
-      - name: Configure (MSVC)
-        run: cmake -S . -B build/native -G "Visual Studio 17 2022" -A x64
-      - name: Build
-        run: cmake --build build/native --config Release
-      - uses: actions/upload-artifact@v4
+      - name: Install Qt 6
+        uses: jurplel/install-qt-action@v4
         with:
-          name: MTGTrackerDesktop-Windows-x64
-          path: build/native/Release/MTGTrackerDesktop.exe
-  docker-cross-compile:
+          version: '6.8.3'
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          cache: true
+      - name: Configure
+        run: cmake -S . -B build/windows -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build/windows --config Release --parallel 2
+      - name: Bundle Qt and QML dependencies
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          Copy-Item build/windows/Release/MTGTrackerDesktop.exe dist/MTGTrackerDesktop.exe
+          windeployqt --release --compiler-runtime --qmldir qml dist/MTGTrackerDesktop.exe
+      - name: QML launch smoke test (offscreen)
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:QSG_RHI_BACKEND = "software"
+          & "$PWD\dist\MTGTrackerDesktop.exe" --smoke-test
+          if ($LASTEXITCODE -ne 0) { throw "Qt/QML smoke test failed: $LASTEXITCODE" }
+      - name: Publish portable Windows app
+        uses: actions/upload-artifact@v4
+        with:
+          name: MTGTrackerDesktop-Windows-Portable
+          path: dist/
+          if-no-files-found: error
+
+  docker-linux:
+    name: Linux build inside Docker
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build Docker toolchain
+      - name: Build Docker compiler image
         run: docker build -t mtg-tracker-desktop-builder .
-      - name: Cross-compile
-        run: docker run --rm -v "${{ github.workspace }}:/src" -w /src mtg-tracker-desktop-builder
+      - name: Compile Qt application inside Docker
+        run: docker run --rm -v "$GITHUB_WORKSPACE:/src" -w /src mtg-tracker-desktop-builder
       - uses: actions/upload-artifact@v4
         with:
-          name: MTGTrackerDesktop-Docker-x64
-          path: build/windows/MTGTrackerDesktop.exe
+          name: MTGTrackerDesktop-Linux-Binary
+          path: build/linux/MTGTrackerDesktop
+          if-no-files-found: error
