@@ -1,41 +1,62 @@
 # MTG Tracker Desktop
 
-A native Windows C++20 application for managing MTG Commander deck profiles.
+**MTG Tracker Desktop v0.2** — a cinematic, Windows-first Commander deck library built in native **C++20 + Qt Quick/QML**.
 
-V0.1 scope: add/edit/delete deck profiles, assign commander names, import artwork, select counters and save locally. No ESP32 connection yet.
+- Grid of illustrated Commander deck cards (artwork from your own files).
+- Fast deck/commander search, deck count, and sorting.
+- Create, edit, and delete Commander deck profiles.
+- Import PNG, JPEG, BMP, WEBP or GIF artwork (copied to local app data).
+- Choose mana color identity and 22 trackers, organized into four categories.
+- Persistent, offline profiles saved atomically as JSON.
+- Automatically imports existing v0.1 Win32 profiles from decks.ini, leaving the original file intact.
+- No accounts, telemetry, network dependency, ESP32 connection, or device sync yet.
 
-## Build via Docker
+## Download Windows build (recommended)
 
-Requirements: Docker on build machine only.
+On the [Actions page](https://github.com/JohnathanKong/mtg-tracker-desktop/actions), open the most recent successful **Build MTG Tracker Desktop** workflow, then download the **MTGTrackerDesktop-Windows-Portable** artifact.
 
-PowerShell:
+Extract the **entire** ZIP and run MTGTrackerDesktop.exe. Qt libraries and QML modules are bundled alongside the executable. You do not install Qt, C++, Python, Node.js, or Docker to run it. **Do not move the .exe out of the extracted folder**; it needs the shipped DLLs/plugins.
 
-    docker build -t mtg-desktop-builder .
-    docker run --rm -v "${PWD}:/src" -w /src mtg-desktop-builder sh -c "cmake -S . -B build/windows -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw.cmake -DCMAKE_BUILD_TYPE=Release && cmake --build build/windows"
+The Windows build is compiled with MSVC and undergoes an offscreen Qt/QML launch smoke test.
 
-Linux/macOS shell: ./scripts/build.sh
+## Build inside Docker
 
-Output: build/windows/MTGTrackerDesktop.exe. Run on Windows without installing a GUI framework, Python, Node, or Docker.
+The Docker image contains the full C++/Qt development environment, but builds a **Linux** executable (not a Windows .exe). This avoids pretending the Linux Qt SDK can link a Windows Qt app.
 
-Native Visual Studio alternative:
+With Docker installed, from the project root, run:
 
-    cmake -S . -B build/native -G "Visual Studio 17 2022" -A x64
-    cmake --build build/native --config Release
+    ./scripts/build.sh
 
-## Stored data
+Output: build/linux/MTGTrackerDesktop.
 
-Local folder: %LOCALAPPDATA%\MTGTrackerDesktop\
-- decks.ini — UTF-16 profile index and enabled stable counter IDs
-- images/ — copied artwork for each deck
+A Windows portable package is built with native Windows Qt tooling on GitHub Actions; Docker is not required to run it. If full Linux-to-Windows Qt cross-compilation becomes important, we can add a dedicated MXE-style toolchain in a later release.
 
-Backup: copy the entire folder. Deleting a deck does not delete saved image files.
+## Native developer build
 
-## Design
+Install Qt 6.4+ with Qt Quick and Qt Quick Controls 2, CMake 3.21+, and a C++20 compiler.
 
-Win32 + GDI+ and C++20, CMake, MinGW-w64 cross-compiler in Docker, no third-party GUI runtime.
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+    cmake --build build --config Release
 
-Counter selection is by deck, not locked to the commander card: two decks using the same commander can have different trackers. Poison and rad are selected by default because opposing decks can give them to you.
+Only the packaged Windows artifact includes Qt dependencies.
 
-No network access, telemetry, account, or hardware integration in this milestone.
+## Data compatibility
 
-ESP32 firmware repository: https://github.com/JohnathanKong/mtg-tracker
+This version saves its deck library under:
+
+    %LOCALAPPDATA%\MTGTrackerDesktop\decks.json
+    %LOCALAPPDATA%\MTGTrackerDesktop\images\
+
+If an old decks.ini from v0.1 exists and decks.json does not, it imports the old decks once. The original .ini remains as a backup.
+
+The app copies user artwork locally on import. Deleting a profile does not automatically delete its artwork file.
+
+## Counter architecture
+
+Deck profiles, not commander card names, decide which counters are enabled. Universal player trackers are initially selected, but can be customized. You can maintain different profiles for the same commander.
+
+The two projects are separate: this is the deck editor. ESP32 firmware lives at [mtg-tracker](https://github.com/JohnathanKong/mtg-tracker).
+
+## Scope
+
+No Scryfall integration, no card catalog download, no live game counters, and **no ESP32 integration** yet. The library becomes illustrated after you import deck artwork. Empty cards use original abstract procedural artwork rather than copyrighted card art.
