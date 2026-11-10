@@ -560,6 +560,7 @@ ApplicationWindow {
 
         Loader {
             id: editorLoader
+            objectName: "editorLoader"
             anchors.fill: parent
             active: window.page === "editor"
             sourceComponent: DeckEditor {
