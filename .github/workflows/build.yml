@@ -53,6 +53,8 @@ jobs:
         run: docker build -t mtg-tracker-desktop-builder .
       - name: Compile Qt application inside Docker
         run: docker run --rm -v "$GITHUB_WORKSPACE:/src" -w /src mtg-tracker-desktop-builder
+      - name: Load the actual QML interface headlessly
+        run: docker run --rm -v "$GITHUB_WORKSPACE:/src" -w /src -e QT_QPA_PLATFORM=offscreen -e QSG_RHI_BACKEND=software -e QT_QUICK_BACKEND=software mtg-tracker-desktop-builder ./build/linux/MTGTrackerDesktop --smoke-test
       - uses: actions/upload-artifact@v4
         with:
           name: MTGTrackerDesktop-Linux-Binary
