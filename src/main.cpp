@@ -1,5 +1,3 @@
-#define UNICODE
-#define _UNICODE
 #define NOMINMAX
 #include <windows.h>
 #include <commctrl.h>
@@ -227,7 +225,7 @@ static void place(HWND h,int x,int y,int w,int height) {
 static void resize(HWND w) {
  RECT rc{};GetClientRect(w,&rc);
  int width=rc.right,height=rc.bottom;
- int left=std::max(190,std::min(300,width/3));
+ int left=std::max(190,std::min(300,int(width)/3));
  int rightX=left+54,rightW=std::max(200,width-rightX-24);
  place(titleLabel,24,17,width-48,42);
  place(addButton,24,78,left,36);
@@ -248,7 +246,7 @@ static void resize(HWND w) {
 }
 static void drawArtwork(HDC hdc) {
  RECT client{};GetClientRect(mainWindow,&client);
- const int left=std::max(190,std::min(300,client.right/3));
+ const int left=std::max(190,std::min(300,int(client.right)/3));
  const Rect area(24,client.bottom-158,left,110);
  Graphics g(hdc);
  SolidBrush fill(Color(255,232,237,246));
