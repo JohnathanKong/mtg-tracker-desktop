@@ -44,19 +44,27 @@ jobs:
           path: dist/
           if-no-files-found: error
 
-  docker-linux:
-    name: Linux build inside Docker
+  docker-windows:
+    name: Docker cross-compile and package Windows x64
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build Docker compiler image
+      - name: Build Windows cross-compiler Docker image
         run: docker build -t mtg-tracker-desktop-builder .
-      - name: Compile Qt application inside Docker
+      - name: Compile and package Windows executable INSIDE Docker
         run: docker run --rm -v "$GITHUB_WORKSPACE:/src" -w /src mtg-tracker-desktop-builder
-      - name: Load the actual QML interface headlessly
-        run: docker run --rm -v "$GITHUB_WORKSPACE:/src" -w /src -e QT_QPA_PLATFORM=offscreen -e QSG_RHI_BACKEND=software -e QT_QUICK_BACKEND=software mtg-tracker-desktop-builder ./build/linux/MTGTrackerDesktop --smoke-test
-      - uses: actions/upload-artifact@v4
+      - name: Verify Windows PE and packaged Qt runtime
+        run: |
+          test -s dist/windows/MTGTrackerDesktop.exe
+          test "$(head -c 2 dist/windows/MTGTrackerDesktop.exe)" = MZ
+          test -s dist/windows/Qt6Core.dll
+          test -s dist/windows/Qt6Quick.dll
+          test -s dist/windows/platforms/qwindows.dll
+          file dist/windows/MTGTrackerDesktop.exe
+          file dist/windows/MTGTrackerDesktop.exe | grep -E 'PE32[+]? executable'
+      - name: Publish Docker-built portable Windows app
+        uses: actions/upload-artifact@v4
         with:
-          name: MTGTrackerDesktop-Linux-Binary
-          path: build/linux/MTGTrackerDesktop
+          name: MTGTrackerDesktop-Docker-Windows-x64
+          path: dist/windows/
           if-no-files-found: error
