@@ -19,6 +19,37 @@ Extract the **entire** ZIP and run MTGTrackerDesktop.exe. Qt libraries and QML m
 
 The Windows build is compiled with MSVC and undergoes an offscreen Qt/QML launch smoke test.
 
+## Building on Windows: important distinction
+
+The app is **C++20 + Qt Quick**, but the included Linux Docker image does not
+contain a Windows cross-compiler or Windows Qt libraries. The old v0.1 command
+using `cmake/mingw.cmake`, `build/windows`, or the Docker image
+`mtg-desktop-builder` is obsolete. Do not reuse it with v0.2.
+
+**To run the Windows app**, download the portable package from a successful
+[GitHub Actions run](https://github.com/JohnathanKong/mtg-tracker-desktop/actions)
+(the artifact is named `MTGTrackerDesktop-Windows-Portable`), unzip the
+*entire folder*, then run `MTGTrackerDesktop.exe`. Windows compilation is
+handled by the Windows GitHub Actions runner (MSVC + Qt).
+
+**To verify compilation entirely in Docker** from Windows PowerShell, use
+the Linux target:
+
+```powershell
+git pull
+.\scripts\build-docker.ps1
+```
+
+Or use the equivalent manual commands:
+
+```powershell
+docker build -t mtg-tracker-desktop-builder .
+docker run --rm -v "${PWD}:/src" -w /src mtg-tracker-desktop-builder
+```
+
+Both of these create `build/linux/MTGTrackerDesktop`, a **Linux executable
+that will not run on Windows**. Do not point this image at the old MinGW toolchain.
+
 ## Build inside Docker
 
 The Docker image contains the full C++/Qt development environment, but builds a **Linux** executable (not a Windows .exe). This avoids pretending the Linux Qt SDK can link a Windows Qt app.
