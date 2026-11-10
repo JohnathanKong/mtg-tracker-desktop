@@ -28,7 +28,20 @@ int main(int argc, char *argv[]) {
     }
 
     if (app.arguments().contains(QStringLiteral("--smoke-test"))) {
-        QTimer::singleShot(2500, &app, &QCoreApplication::quit);
+        QTimer::singleShot(300, &app, [&engine] {
+            if (!engine.rootObjects().isEmpty())
+                engine.rootObjects().first()->setProperty("page", QStringLiteral("editor"));
+        });
+        QTimer::singleShot(2000, &app, [&app, &engine] {
+            auto *root = engine.rootObjects().isEmpty() ? nullptr : engine.rootObjects().first();
+            auto *loader = root ? root->findChild<QObject *>(QStringLiteral("editorLoader")) : nullptr;
+            if (!loader || loader->property("item").isNull()) {
+                qCritical() << "QML deck editor failed to load";
+                app.exit(3);
+            } else {
+                app.quit();
+            }
+        });
     }
 
     return app.exec();
