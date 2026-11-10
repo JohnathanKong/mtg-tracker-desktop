@@ -1,0 +1,4 @@
+# Keep shell entrypoints executable by Bash on every checkout, including Windows.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.ps1 text eol=crlf
