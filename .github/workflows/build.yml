@@ -49,6 +49,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Simulate a Windows checkout with CRLF shell scripts
+        run: |
+          python3 -c "from pathlib import Path; p=Path('scripts/build-windows.sh'); p.write_bytes(p.read_bytes().replace(b'\\r\\n', b'\\n').replace(b'\\n', b'\\r\\n'))"
       - name: Build Windows cross-compiler Docker image
         run: docker build -t mtg-tracker-desktop-builder .
       - name: Compile and package Windows executable INSIDE Docker
