@@ -332,6 +332,10 @@ void DeviceSync::complete(bool success, const QString &detail, int deckCount) {
 
 void DeviceSync::sync(const QString &port, const QVariantList &decks) {
     if (m_busy) return;
+    if (decks.isEmpty()) {
+        complete(false, QStringLiteral("Create at least one saved deck before syncing."), 0);
+        return;
+    }
 
     QString problem;
     const QByteArray payload = buildPayload(decks, problem);
