@@ -29,6 +29,11 @@ ApplicationWindow {
         page = "links"
         selectedDeck = ""
     }
+    function toDevice() {
+        page = "device"
+        selectedDeck = ""
+        deviceSync.refreshPorts()
+    }
     function showToast(message) {
         toastMessage = message
         toastTimer.restart()
@@ -284,6 +289,50 @@ ApplicationWindow {
                 cursorShape: Qt.PointingHandCursor
                 hoverEnabled: true
                 onClicked: window.toLinks()
+            }
+        }
+
+        Rectangle {
+            id: navDevice
+            x: 12; y: 234
+            width: parent.width - 24
+            height: 50
+            radius: 10
+            color: window.page === "device" ? "#25232A" :
+                   deviceHover.containsMouse ? "#202938" : "transparent"
+            border.color: window.page === "device" ? "#6B513A" : "transparent"
+            border.width: 1
+            Rectangle {
+                x: 0; width: 3; height: parent.height
+                radius: 2
+                color: "#F2BD67"
+                visible: window.page === "device"
+            }
+            Row {
+                anchors.left: parent.left; anchors.leftMargin: 17
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 13
+                Text {
+                    text: "⇄"
+                    color: window.page === "device" ? "#F0C777" : "#C3C0BB"
+                    font.pixelSize: 22
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                    text: "Device Sync"
+                    color: window.page === "device" ? "#FFF1DC" : "#CCD5E3"
+                    font.family: "Segoe UI"
+                    font.pixelSize: 14
+                    font.bold: window.page === "device"
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+            MouseArea {
+                id: deviceHover
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: window.toDevice()
             }
         }
 
@@ -621,6 +670,16 @@ ApplicationWindow {
                 onEditRequested: function(deckId) {
                     window.openEditor(deckId)
                 }
+            }
+        }
+
+        Loader {
+            id: deviceLoader
+            objectName: "deviceLoader"
+            anchors.fill: parent
+            active: window.page === "device"
+            sourceComponent: DeviceSyncPage {
+                libraryRevision: window.revision
             }
         }
 
