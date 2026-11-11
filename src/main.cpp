@@ -1,4 +1,5 @@
 #include "DeckStore.h"
+#include "DeviceSync.h"
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -16,8 +17,10 @@ int main(int argc, char *argv[]) {
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
     DeckStore store;
+    DeviceSync deviceSync;
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("deckStore"), &store);
+    engine.rootContext()->setContextProperty(QStringLiteral("deviceSync"), &deviceSync);
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
                      &app, [] { QCoreApplication::exit(2); }, Qt::QueuedConnection);
     engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
@@ -42,7 +45,21 @@ int main(int argc, char *argv[]) {
                 root->setProperty("page", QStringLiteral("editor"));
             }
         });
-        QTimer::singleShot(2200, &app, [&app, &engine] {
+        QTimer::singleShot(1500, &app, [&app, &engine] {
+            auto *root = engine.rootObjects().isEmpty() ? nullptr : engine.rootObjects().first();
+            if (root) root->setProperty("page", QStringLiteral("device"));
+        });
+        QTimer::singleShot(2300, &app, [&app, &engine] {
+            auto *root = engine.rootObjects().isEmpty() ? nullptr : engine.rootObjects().first();
+            auto *loader = root ? root->findChild<QObject *>(QStringLiteral("deviceLoader")) : nullptr;
+            if (!loader || loader->property("item").isNull()) {
+                qCritical() << "QML device sync page failed to load";
+                app.exit(5);
+            } else {
+                root->setProperty("page", QStringLiteral("editor"));
+            }
+        });
+        QTimer::singleShot(3400, &app, [&app, &engine] {
             auto *root = engine.rootObjects().isEmpty() ? nullptr : engine.rootObjects().first();
             auto *loader = root ? root->findChild<QObject *>(QStringLiteral("editorLoader")) : nullptr;
             if (!loader || loader->property("item").isNull()) {
