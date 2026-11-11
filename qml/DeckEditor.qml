@@ -14,6 +14,7 @@ Item {
     property string artworkUrl: ""
     property var trackers: []
     property var colors: []
+    property var customTrackers: []
     property bool creating: profileId.length === 0
 
     property var basicTrackers: [
@@ -42,15 +43,13 @@ Item {
     ]
     property var extraTrackers: [
         { id: "mana_pool", label: "Mana pool", icon: "✦" },
-        { id: "turn", label: "Turn number", icon: "⧖" },
-        { id: "custom_1", label: "Custom 1", icon: "＋" },
-        { id: "custom_2", label: "Custom 2", icon: "＋" }
+        { id: "turn", label: "Turn number", icon: "⧖" }
     ]
     property var groups: [
         { title: "Always Track", description: "Useful in almost every Commander game.", symbol: "✦", items: basicTrackers },
         { title: "Deck Mechanics", description: "Include only what your deck actually uses.", symbol: "ϟ", items: mechanicTrackers },
         { title: "Game States", description: "Situational effects and player statuses.", symbol: "♛", items: statusTrackers },
-        { title: "Extras", description: "Additional counters and custom slots.", symbol: "⊕", items: extraTrackers }
+        { title: "Extras", description: "Optional utilities for your deck.", symbol: "⊕", items: extraTrackers }
     ]
 
     function open(id) {
@@ -58,11 +57,15 @@ Item {
         profileId = d.id || ""
         deckName.text = d.name || ""
         commanderName.text = d.commander || ""
+        deckListUrl.text = d.deckUrl || ""
         artworkPath = d.artwork || ""
         artworkUrl = d.artworkUrl || ""
         trackers = d.id ? (d.trackers || []).slice() :
             ["life","poison","rad","commander_damage","commander_casts","commander_deaths"]
         colors = (d.colors || []).slice()
+        customTrackers = (d.customTrackers || []).map(function(c) { return {id:c.id, label:c.label} })
+        newCustomName.text = ""
+        customValidation.text = ""
         pageScroll.contentY = 0
         deckName.forceActiveFocus()
     }
@@ -73,6 +76,47 @@ Item {
         if (index < 0) next.push(id)
         else next.splice(index, 1)
         trackers = next
+    }
+
+    function addCustomTracker() {
+        var label = newCustomName.text.trim()
+        if (!label) {
+            customValidation.text = "Enter a counter name before adding it."
+            return
+        }
+        if (customTrackers.some(function(c) { return c.label.toLowerCase() === label.toLowerCase() })) {
+            customValidation.text = "That custom tracker already exists."
+            return
+        }
+        if (customTrackers.length >= 100) {
+            customValidation.text = "A deck can have up to 100 custom trackers."
+            return
+        }
+        var id = "custom-" + Date.now().toString(36) + "-" + Math.floor(Math.random() * 0xFFFFFF).toString(36)
+        var next = customTrackers.slice()
+        next.push({ id: id, label: label })
+        customTrackers = next
+        trackers = trackers.concat([id]) // New custom trackers start enabled.
+        newCustomName.text = ""
+        customValidation.text = ""
+    }
+
+    function renameCustomTracker(id, value) {
+        var label = value.trim()
+        if (!label) {
+            customValidation.text = "A custom tracker needs a name."
+            return
+        }
+        var next = customTrackers.map(function(c) {
+            return c.id === id ? { id: c.id, label: label } : c
+        })
+        customTrackers = next
+        customValidation.text = ""
+    }
+
+    function removeCustomTracker(id) {
+        customTrackers = customTrackers.filter(function(c) { return c.id !== id })
+        trackers = trackers.filter(function(t) { return t !== id })
     }
 
     function toggleColor(id) {
@@ -94,6 +138,8 @@ Item {
             name: deckName.text.trim(),
             commander: commanderName.text.trim(),
             artwork: artworkPath,
+            deckUrl: deckListUrl.text.trim(),
+            customTrackers: customTrackers,
             trackers: trackers,
             colors: colors
         })
@@ -425,6 +471,70 @@ Item {
                     }
 
                     Column {
+                        width: parent.width
+                        spacing: 7
+                        Text {
+                            text: "Deck list URL"
+                            color: "#C7D1DD"
+                            font.family: "Segoe UI"
+                            font.pixelSize: 13
+                        }
+                        Row {
+                            width: parent.width
+                            height: 48
+                            spacing: 10
+                            TextField {
+                                id: deckListUrl
+                                width: parent.width - 112
+                                height: 48
+                                font.family: "Segoe UI"
+                                font.pixelSize: 13
+                                color: "#FFF7E8"
+                                placeholderText: "https://moxfield.com/decks/..."
+                                placeholderTextColor: "#71839A"
+                                selectByMouse: true
+                                inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoPredictiveText
+                                background: Rectangle {
+                                    radius: 10
+                                    color: "#151D29"
+                                    border.width: 1
+                                    border.color: deckListUrl.activeFocus ? "#CCA368" : "#394657"
+                                }
+                            }
+                            Rectangle {
+                                width: 102; height: 48
+                                radius: 10
+                                color: linkHover.containsMouse ? "#33372F" : "#222A32"
+                                border.color: "#9E7E4C"
+                                opacity: deckListUrl.text.trim().length > 0 ? 1 : 0.45
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "↗  Open"
+                                    color: "#F5D394"
+                                    font.family: "Segoe UI"
+                                    font.pixelSize: 13
+                                    font.bold: true
+                                }
+                                MouseArea {
+                                    id: linkHover
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    enabled: deckListUrl.text.trim().length > 0
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: deckStore.openDeckUrl(deckListUrl.text.trim())
+                                }
+                            }
+                        }
+                        Text {
+                            width: parent.width
+                            text: "Link to your Moxfield, Archidekt, MTGGoldfish, or other deck list."
+                            color: "#8392A7"
+                            font.family: "Segoe UI"
+                            font.pixelSize: 11
+                        }
+                    }
+
+                    Column {
                         spacing: 10
                         Text {
                             text: "Color identity  ·  optional"
@@ -586,6 +696,191 @@ Item {
                                 }
                             }
                         }
+                    }
+                }
+            }
+
+            Rectangle {
+                width: parent.width
+                height: customColumn.implicitHeight + 38
+                radius: 14
+                color: "#121A25"
+                border.color: "#675238"
+                border.width: 1
+
+                Column {
+                    id: customColumn
+                    x: 20
+                    y: 19
+                    width: parent.width - 40
+                    spacing: 15
+
+                    Row {
+                        spacing: 12
+                        Text {
+                            text: "✎"
+                            color: "#E6B96D"
+                            font.pixelSize: 23
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Text {
+                            text: "Custom Trackers"
+                            color: "#F5E9D8"
+                            font.family: "Segoe UI"
+                            font.pixelSize: 17
+                            font.bold: true
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Text {
+                            text: "Give each tracker its own name. Add as many as your deck needs."
+                            color: "#8E9BAD"
+                            font.family: "Segoe UI"
+                            font.pixelSize: 11
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    Row {
+                        width: parent.width
+                        spacing: 11
+                        height: 45
+
+                        TextField {
+                            id: newCustomName
+                            width: Math.min(490, parent.width - 154)
+                            height: parent.height
+                            maximumLength: 64
+                            placeholderText: "e.g. Goblins created, Treasures, Spell copies"
+                            placeholderTextColor: "#8291A4"
+                            color: "#FFF1E0"
+                            font.family: "Segoe UI"
+                            font.pixelSize: 13
+                            selectByMouse: true
+                            onAccepted: editor.addCustomTracker()
+                            background: Rectangle {
+                                radius: 10
+                                color: "#171F2B"
+                                border.color: newCustomName.activeFocus ? "#CCA368" : "#465064"
+                            }
+                        }
+
+                        Rectangle {
+                            width: 143; height: 45; radius: 10
+                            color: addCustomHover.containsMouse ? "#E8C176" : "#C69B56"
+                            Text {
+                                anchors.centerIn: parent
+                                text: "+  Add Tracker"
+                                color: "#20170F"
+                                font.family: "Segoe UI"
+                                font.pixelSize: 13
+                                font.bold: true
+                            }
+                            MouseArea {
+                                id: addCustomHover
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: editor.addCustomTracker()
+                            }
+                        }
+                    }
+
+                    Text {
+                        id: customValidation
+                        visible: text.length > 0
+                        color: "#F29B87"
+                        font.family: "Segoe UI"
+                        font.pixelSize: 12
+                    }
+
+                    Flow {
+                        width: parent.width
+                        spacing: 12
+                        visible: editor.customTrackers.length > 0
+                        Repeater {
+                            model: editor.customTrackers
+                            Rectangle {
+                                required property var modelData
+                                property string customId: modelData.id
+                                width: Math.min(480, customColumn.width)
+                                height: 112
+                                radius: 12
+                                color: "#1B2532"
+                                border.color: "#3A4B61"
+                                border.width: 1
+
+                                Column {
+                                    x: 13; y: 12
+                                    width: parent.width - 26
+                                    spacing: 8
+                                    Row {
+                                        width: parent.width
+                                        height: 47
+                                        spacing: 9
+                                        TextField {
+                                            id: customNameEdit
+                                            width: parent.width - 44
+                                            height: 42
+                                            text: modelData.label
+                                            maximumLength: 64
+                                            selectByMouse: true
+                                            color: "#F5E8D4"
+                                            font.family: "Segoe UI"
+                                            font.pixelSize: 13
+                                            background: Rectangle {
+                                                color: "#121B27"
+                                                radius: 7
+                                                border.color: customNameEdit.activeFocus ? "#D6AE67" : "#3C4B5D"
+                                            }
+                                            onEditingFinished: editor.renameCustomTracker(customId, text)
+                                        }
+                                        Rectangle {
+                                            width: 34; height: 36; radius: 7
+                                            color: removeCustomHover.containsMouse ? "#5F2830" : "#33212B"
+                                            border.color: "#854C57"
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: "×"
+                                                color: "#FFAAA6"
+                                                font.pixelSize: 22
+                                            }
+                                            MouseArea {
+                                                id: removeCustomHover
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: editor.removeCustomTracker(customId)
+                                            }
+                                        }
+                                    }
+                                    Row {
+                                        spacing: 10
+                                        CounterChip {
+                                            label: modelData.label
+                                            symbol: "✚"
+                                            checked: editor.trackers.indexOf(customId) !== -1
+                                            height: 40
+                                            onToggled: editor.toggleTracker(customId)
+                                        }
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: "Enable / disable"
+                                            color: "#8A98AB"
+                                            font.family: "Segoe UI"
+                                            font.pixelSize: 11
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        visible: editor.customTrackers.length === 0
+                        text: "No custom trackers yet. Add one above to show it on this deck."
+                        color: "#8091A6"
+                        font.family: "Segoe UI"
+                        font.pixelSize: 12
                     }
                 }
             }
