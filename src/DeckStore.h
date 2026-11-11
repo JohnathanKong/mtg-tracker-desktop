@@ -13,6 +13,8 @@ struct DeckProfile {
     QString name;
     QString commander;
     QString artwork;
+    QString deckUrl;
+    QVariantList customTrackers;
     QStringList trackers;
     QStringList colors;
 };
@@ -41,6 +43,7 @@ public:
     Q_INVOKABLE QString saveDeck(const QVariantMap &profile);
     Q_INVOKABLE bool deleteDeck(const QString &id);
     Q_INVOKABLE QString importArtwork(const QUrl &source);
+    Q_INVOKABLE bool openDeckUrl(const QString &url);
     Q_INVOKABLE QString dataDirectory() const;
     Q_INVOKABLE QString lastError() const { return m_lastError; }
 
