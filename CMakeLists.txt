@@ -25,6 +25,7 @@ qt_add_resources(MTGTrackerDesktop "desktop_qml"
         qml/DeckCard.qml
         qml/CounterChip.qml
         qml/DeckEditor.qml
+        qml/DeckLinks.qml
 )
 
 set_target_properties(MTGTrackerDesktop PROPERTIES
