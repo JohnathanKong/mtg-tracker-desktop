@@ -25,6 +25,10 @@ ApplicationWindow {
         page = "library"
         selectedDeck = ""
     }
+    function toLinks() {
+        page = "links"
+        selectedDeck = ""
+    }
     function showToast(message) {
         toastMessage = message
         toastTimer.restart()
@@ -168,13 +172,15 @@ ApplicationWindow {
             width: parent.width - 24
             height: 50
             radius: 10
-            color: "#25232A"
-            border.color: "#6B513A"
+            color: window.page === "library" ? "#25232A" :
+                   navLibraryHover.containsMouse ? "#202938" : "transparent"
+            border.color: window.page === "library" ? "#6B513A" : "transparent"
             border.width: 1
             Rectangle {
                 x: 0; width: 3; height: parent.height
                 radius: 2
                 color: "#F2BD67"
+                visible: window.page === "library"
             }
             Row {
                 anchors.left: parent.left; anchors.leftMargin: 16
@@ -196,8 +202,10 @@ ApplicationWindow {
                 }
             }
             MouseArea {
+                id: navLibraryHover
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
+                hoverEnabled: true
                 onClicked: window.toLibrary()
             }
         }
@@ -231,6 +239,51 @@ ApplicationWindow {
                 cursorShape: Qt.PointingHandCursor
                 hoverEnabled: true
                 onClicked: window.openEditor("")
+            }
+        }
+
+        Rectangle {
+            id: navLinks
+            x: 12; y: 176
+            width: parent.width - 24
+            height: 50
+            radius: 10
+            color: window.page === "links" ? "#25232A" :
+                   linksHover.containsMouse ? "#202938" : "transparent"
+            border.color: window.page === "links" ? "#6B513A" : "transparent"
+            border.width: 1
+
+            Rectangle {
+                x: 0; width: 3; height: parent.height
+                radius: 2
+                color: "#F2BD67"
+                visible: window.page === "links"
+            }
+            Row {
+                anchors.left: parent.left; anchors.leftMargin: 17
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 13
+                Text {
+                    text: "↗"
+                    color: window.page === "links" ? "#F0C777" : "#C3C0BB"
+                    font.pixelSize: 22
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                    text: "Deck Links"
+                    color: window.page === "links" ? "#FFF1DC" : "#CCD5E3"
+                    font.family: "Segoe UI"
+                    font.pixelSize: 14
+                    font.bold: window.page === "links"
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+            MouseArea {
+                id: linksHover
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                hoverEnabled: true
+                onClicked: window.toLinks()
             }
         }
 
@@ -554,6 +607,18 @@ ApplicationWindow {
                             font.pixelSize: 16
                         }
                     }
+                }
+            }
+        }
+
+        Loader {
+            id: linksLoader
+            anchors.fill: parent
+            active: window.page === "links"
+            sourceComponent: DeckLinks {
+                libraryRevision: window.revision
+                onEditRequested: function(deckId) {
+                    window.openEditor(deckId)
                 }
             }
         }
