@@ -7,7 +7,9 @@ Item {
     property bool checked: false
     signal toggled()
 
-    implicitWidth: Math.max(128, labelText.implicitWidth + 74)
+    // Reserve enough space for glyph, label, checkbox, and all their margins.
+    // Do not truncate tracker names: the Flow will wrap whole chips instead.
+    implicitWidth: Math.max(136, labelText.implicitWidth + glyph.implicitWidth + 84)
     implicitHeight: 48
     width: implicitWidth
     height: implicitHeight
@@ -42,7 +44,8 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         text: chip.label
         color: chip.checked ? "#FFF7E7" : "#CAD3DF"
-        elide: Text.ElideRight
+        wrapMode: Text.NoWrap
+        elide: Text.ElideNone
         font.family: "Segoe UI"
         font.pixelSize: 13
         font.weight: chip.checked ? Font.DemiBold : Font.Normal
