@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("MTGTrackerDesktop"));
     app.setOrganizationName(QStringLiteral("MTGTracker"));
-    app.setApplicationVersion(QStringLiteral("0.2.0"));
+    app.setApplicationVersion(QStringLiteral("0.3.0"));
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
     DeckStore store;
