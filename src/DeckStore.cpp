@@ -1,6 +1,7 @@
 #include "DeckStore.h"
 
 #include <QDir>
+#include <QDesktopServices>
 #include <QFile>
 #include <QFileInfo>
 #include <QImageReader>
@@ -32,6 +33,34 @@ QStringList uniqueValues(const QStringList &values) {
         if (!entry.trimmed().isEmpty() && !out.contains(entry))
             out.append(entry.trimmed());
     return out;
+}
+QVariantList normalizeCustoms(const QVariantList &input) {
+    QVariantList output;
+    QStringList ids;
+    for (const QVariant &item : input) {
+        const QVariantMap map = item.toMap();
+        const QString id = map.value(QStringLiteral("id")).toString();
+        const QString label = map.value(QStringLiteral("label")).toString().trimmed().left(64);
+        if (id.isEmpty() || id.size() > 90 || label.isEmpty() || ids.contains(id))
+            continue;
+        if (!(id.startsWith(QStringLiteral("custom-")) ||
+              id == QStringLiteral("custom_1") || id == QStringLiteral("custom_2")))
+            continue;
+        output.append(QVariantMap{{QStringLiteral("id"),id},{QStringLiteral("label"),label}});
+        ids.append(id);
+        if (output.size() >= 100) break;
+    }
+    return output;
+}
+QUrl validatedLink(const QString &value) {
+    const QString url = value.trimmed();
+    if (url.size() > 2048 || url.contains(QChar::Space))
+        return {};
+    const QUrl parsed(url, QUrl::StrictMode);
+    if (!parsed.isValid() || parsed.host().isEmpty() || !parsed.userInfo().isEmpty() ||
+        (parsed.scheme() != QStringLiteral("http") && parsed.scheme() != QStringLiteral("https")))
+        return {};
+    return parsed;
 }
 QString imageUrl(const QString &filename) {
     if (filename.isEmpty() || !QFileInfo::exists(filename))
@@ -86,6 +115,8 @@ QVariantMap DeckStore::toMap(const DeckProfile &d) {
         {QStringLiteral("name"), d.name},
         {QStringLiteral("commander"), d.commander},
         {QStringLiteral("artwork"), d.artwork},
+        {QStringLiteral("deckUrl"), d.deckUrl},
+        {QStringLiteral("customTrackers"), d.customTrackers},
         {QStringLiteral("artworkUrl"), imageUrl(d.artwork)},
         {QStringLiteral("trackers"), d.trackers},
         {QStringLiteral("colors"), d.colors},
@@ -99,6 +130,23 @@ DeckProfile DeckStore::fromMap(const QVariantMap &map) {
     d.name = map.value(QStringLiteral("name")).toString().trimmed();
     d.commander = map.value(QStringLiteral("commander")).toString().trimmed();
     d.artwork = map.value(QStringLiteral("artwork")).toString();
+    d.deckUrl = map.value(QStringLiteral("deckUrl")).toString().trimmed();
+    d.customTrackers = normalizeCustoms(map.value(QStringLiteral("customTrackers")).toList());
+    // Profiles from v0.2 used two unnamed custom slots. Preserve them as
+    // editable named trackers so existing deck configurations still work.
+    const QStringList previous = strings(map.value(QStringLiteral("trackers")));
+    for (int n=1; n<=2; ++n) {
+        const QString id = QStringLiteral("custom_") + QString::number(n);
+        bool exists = false;
+        for (const auto &custom : d.customTrackers)
+            if (custom.toMap().value(QStringLiteral("id")).toString() == id)
+                exists = true;
+        if (previous.contains(id) && !exists)
+            d.customTrackers.append(QVariantMap{
+                {QStringLiteral("id"), id},
+                {QStringLiteral("label"), QStringLiteral("Custom ") + QString::number(n)}
+            });
+    }
     d.trackers = uniqueValues(strings(map.value(QStringLiteral("trackers"))));
     d.colors = uniqueValues(strings(map.value(QStringLiteral("colors"))));
     return d;
@@ -157,6 +205,8 @@ bool DeckStore::persist() {
             {QStringLiteral("name"), d.name},
             {QStringLiteral("commander"), d.commander},
             {QStringLiteral("artwork"), d.artwork},
+            {QStringLiteral("deckUrl"), d.deckUrl},
+            {QStringLiteral("customTrackers"), QJsonArray::fromVariantList(d.customTrackers)}
         };
         QJsonArray trackers;
         for (const auto &tracker : d.trackers) trackers.append(tracker);
@@ -191,6 +241,10 @@ QString DeckStore::saveDeck(const QVariantMap &data) {
     DeckProfile profile = fromMap(data);
     if (profile.name.isEmpty()) {
         report(QStringLiteral("Give your deck a name first."));
+        return {};
+    }
+    if (!profile.deckUrl.isEmpty() && !validatedLink(profile.deckUrl).isValid()) {
+        report(QStringLiteral("Deck list URL must begin with https:// or http:// and have a valid host."));
         return {};
     }
     if (profile.id.isEmpty())
@@ -253,6 +307,19 @@ QString DeckStore::importArtwork(const QUrl &source) {
         return {};
     }
     return destination;
+}
+
+bool DeckStore::openDeckUrl(const QString &url) {
+    const QUrl parsed = validatedLink(url);
+    if (!parsed.isValid()) {
+        report(QStringLiteral("Enter a valid HTTPS or HTTP deck list URL."));
+        return false;
+    }
+    if (!QDesktopServices::openUrl(parsed)) {
+        report(QStringLiteral("Couldn't open the link in your browser."));
+        return false;
+    }
+    return true;
 }
 
 QString DeckStore::dataDirectory() const { return m_folder; }
