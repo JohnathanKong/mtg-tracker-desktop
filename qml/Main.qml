@@ -613,6 +613,7 @@ ApplicationWindow {
 
         Loader {
             id: linksLoader
+            objectName: "linksLoader"
             anchors.fill: parent
             active: window.page === "links"
             sourceComponent: DeckLinks {
