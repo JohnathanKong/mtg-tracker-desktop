@@ -8,6 +8,8 @@
 #include <QtGlobal>
 #include <memory>
 #include <stdexcept>
+#include <string>
+#include <system_error>
 
 #ifdef Q_OS_WIN
 #ifndef NOMINMAX
@@ -135,9 +137,16 @@ void writeBytes(HANDLE port, const QByteArray &bytes) {
     while (offset < bytes.size()) {
         DWORD written = 0;
         const DWORD length = DWORD(bytes.size() - offset);
-        if (!WriteFile(port, bytes.constData() + offset, length, &written, nullptr) ||
-            written == 0) {
-            throw std::runtime_error("USB serial write failed (port disconnected or busy).");
+        if (!WriteFile(port, bytes.constData() + offset, length, &written, nullptr)) {
+            const DWORD code = GetLastError();
+            throw std::runtime_error("USB serial write failed (Windows error " +
+                                     std::to_string(code) + ": " +
+                                     std::system_category().message(code) + ").");
+        }
+        if (written == 0) {
+            throw std::runtime_error(
+                "USB serial write timed out with 0 bytes. Verify native S3 USB firmware, "
+                "the COM port and whether another serial monitor is open.");
         }
         offset += int(written);
     }
@@ -196,8 +205,12 @@ void sendToDevice(const QString &device, const QByteArray &payload, int deckCoun
     PortHandle port;
     port.handle = CreateFileW(wideName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr,
                               OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (port.handle == INVALID_HANDLE_VALUE)
-        throw std::runtime_error("Cannot open COM port. Close any serial monitor and retry.");
+    if (port.handle == INVALID_HANDLE_VALUE) {
+        const DWORD code = GetLastError();
+        throw std::runtime_error("Cannot open " + device.toStdString() +
+                                 " (Windows error " + std::to_string(code) + ": " +
+                                 std::system_category().message(code) + ").");
+    }
 
     if (!SetupComm(port.handle, 4096, 4096))
         throw std::runtime_error("Cannot initialize serial buffers.");
@@ -215,6 +228,12 @@ void sendToDevice(const QString &device, const QByteArray &payload, int deckCoun
     dcb.fOutxDsrFlow = FALSE;
     dcb.fOutX = FALSE;
     dcb.fInX = FALSE;
+    dcb.fDsrSensitivity = FALSE;
+    dcb.fAbortOnError = FALSE;
+    // ESP32-S3 native USB Serial/JTAG has no CTS/RTS hardware flow control.
+    // Do not assert modem lines when opening: they may trigger a boot reset.
+    dcb.fDtrControl = DTR_CONTROL_DISABLE;
+    dcb.fRtsControl = RTS_CONTROL_DISABLE;
     if (!SetCommState(port.handle, &dcb))
         throw std::runtime_error("Cannot configure serial port at 115200 baud.");
 
@@ -225,7 +244,11 @@ void sendToDevice(const QString &device, const QByteArray &payload, int deckCoun
     if (!SetCommTimeouts(port.handle, &timeouts))
         throw std::runtime_error("Cannot set serial port timeouts.");
 
-    Sleep(650); // Allow a board that resets when serial opens to become ready.
+    Sleep(650); // Allow virtual COM enumeration / device startup to settle.
+    DWORD serialErrors = 0;
+    COMSTAT serialStatus{};
+    if (!ClearCommError(port.handle, &serialErrors, &serialStatus))
+        throw std::runtime_error("Cannot clear Windows serial error state.");
     PurgeComm(port.handle, PURGE_RXCLEAR | PURGE_TXCLEAR);
 
     progress(2, QStringLiteral("Connecting to ESP32-S3..."));
