@@ -1,6 +1,6 @@
 # MTG Tracker Desktop
 
-**MTG Tracker Desktop v0.2** — a cinematic, Windows-first Commander deck library built in native **C++20 + Qt Quick/QML**.
+**MTG Tracker Desktop v0.3** — a cinematic, Windows-first Commander deck library built in native **C++20 + Qt Quick/QML**.
 
 - Grid of illustrated Commander deck cards (artwork from your own files).
 - Fast deck/commander search, deck count, and sorting.
@@ -12,7 +12,9 @@
 - Use the dedicated **Deck Links** page to access all saved deck lists.
 - Persistent, offline profiles saved atomically as JSON.
 - Automatically imports existing v0.1 Win32 profiles from decks.ini, leaving the original file intact.
-- No accounts, telemetry, network dependency, ESP32 connection, or device sync yet.
+- **Device Sync** page: choose a Windows COM port and push saved deck metadata to the Waveshare ESP32-S3 via USB.
+- Explicit handshake, CRC-32, per-chunk acknowledgements, progress display, and final device confirmation.
+- No accounts, telemetry, Wi-Fi setup, or phone required.
 
 ## Download Windows build (recommended)
 
@@ -71,6 +73,29 @@ Install Qt 6.4+ with Qt Quick and Qt Quick Controls 2, CMake 3.21+, and a C++20 
     cmake --build build --config Release
 
 Only the packaged Windows artifact includes Qt dependencies.
+
+## USB synchronization — milestone 1
+
+Both repositories now implement the same [USB sync protocol v1](https://github.com/JohnathanKong/mtg-tracker/blob/main/docs/sync-protocol-v1.md).
+
+1. Build the MTG Tracker ESP32-S3 firmware from the separate firmware repository.
+2. **Caution: flashing replaces the factory Waveshare demo firmware.** This first firmware is a headless sync receiver; don't flash until ready to replace the original on-device UI.
+3. Connect the knob by USB-C with the orientation that reaches its ESP32-S3, not the secondary ESP32.
+4. In the desktop app, open **Device Sync**, refresh COM ports, choose the port, and click **Sync Deck Library**.
+5. A transfer is reported successful **only after** the device confirms the final checksum and persistent storage.
+
+Only saved deck names, commander names, mana color identities, selected trackers,
+and custom tracker names are transferred in v1. No images or deck list URLs are
+copied to the device yet. The ESP32 saves its library in internal flash so the
+desktop is not needed after synchronization.
+
+Synced decks intentionally replace the device's previous deck library only
+after successful validation. The desktop refuses to send an empty library to
+avoid accidental deletion. There is no automatic firmware flashing.
+
+The sync implementation is compile-tested in Windows CI and the ESP32
+firmware is compiled independently in its own CI. A physical USB/flash test
+is still required before considering the integration hardware-verified.
 
 ## Data compatibility
 
