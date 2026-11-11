@@ -6,7 +6,10 @@
 - Fast deck/commander search, deck count, and sorting.
 - Create, edit, and delete Commander deck profiles.
 - Import PNG, JPEG, BMP, WEBP or GIF artwork (copied to local app data).
-- Choose mana color identity and 22 trackers, organized into four categories.
+- Choose mana color identity and built-in trackers organized into categories, with full labels and no truncation.
+- Create, rename, enable/disable and delete **named custom trackers** per deck (up to 100).
+- Save a **deck list URL** (Moxfield, Archidekt, MTGGoldfish, or any HTTPS/HTTP site) and open it in your browser.
+- Use the dedicated **Deck Links** page to access all saved deck lists.
 - Persistent, offline profiles saved atomically as JSON.
 - Automatically imports existing v0.1 Win32 profiles from decks.ini, leaving the original file intact.
 - No accounts, telemetry, network dependency, ESP32 connection, or device sync yet.
@@ -79,6 +82,19 @@ This version saves its deck library under:
 If an old decks.ini from v0.1 exists and decks.json does not, it imports the old decks once. The original .ini remains as a backup.
 
 The app copies user artwork locally on import. Deleting a profile does not automatically delete its artwork file.
+
+## Custom trackers and deck list links
+
+The deck editor's Custom Trackers panel allows you to type any tracker name
+(e.g. "Treasures", "Goblins created" or "Spell copies"), add it, rename it,
+toggle whether it is enabled, or remove it entirely. Trackers belong to the
+deck profile, not the Commander card. Older profiles using the two default
+custom tracker slots migrate to editable names.
+
+The deck editor also has a Deck list URL field. Paste the full `https://`
+or `http://` URL for your deck list. The Deck Links sidebar page lists all
+decks and lets you open the link in your default web browser; no web requests
+or syncing occur inside the app.
 
 ## Counter architecture
 
