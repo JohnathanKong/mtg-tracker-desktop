@@ -30,9 +30,19 @@ int main(int argc, char *argv[]) {
     if (app.arguments().contains(QStringLiteral("--smoke-test"))) {
         QTimer::singleShot(300, &app, [&engine] {
             if (!engine.rootObjects().isEmpty())
-                engine.rootObjects().first()->setProperty("page", QStringLiteral("editor"));
+                engine.rootObjects().first()->setProperty("page", QStringLiteral("links"));
         });
-        QTimer::singleShot(2000, &app, [&app, &engine] {
+        QTimer::singleShot(1000, &app, [&app, &engine] {
+            auto *root = engine.rootObjects().isEmpty() ? nullptr : engine.rootObjects().first();
+            auto *loader = root ? root->findChild<QObject *>(QStringLiteral("linksLoader")) : nullptr;
+            if (!loader || loader->property("item").isNull()) {
+                qCritical() << "QML deck links page failed to load";
+                app.exit(4);
+            } else {
+                root->setProperty("page", QStringLiteral("editor"));
+            }
+        });
+        QTimer::singleShot(2200, &app, [&app, &engine] {
             auto *root = engine.rootObjects().isEmpty() ? nullptr : engine.rootObjects().first();
             auto *loader = root ? root->findChild<QObject *>(QStringLiteral("editorLoader")) : nullptr;
             if (!loader || loader->property("item").isNull()) {
