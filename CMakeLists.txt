@@ -11,11 +11,14 @@ qt_add_executable(MTGTrackerDesktop WIN32
     src/main.cpp
     src/DeckStore.cpp
     src/DeckStore.h
+    src/DeviceSync.cpp
+    src/DeviceSync.h
 )
 
 target_link_libraries(MTGTrackerDesktop PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
+    $<$<PLATFORM_ID:Windows>:advapi32>
 )
 
 qt_add_resources(MTGTrackerDesktop "desktop_qml"
@@ -26,6 +29,7 @@ qt_add_resources(MTGTrackerDesktop "desktop_qml"
         qml/CounterChip.qml
         qml/DeckEditor.qml
         qml/DeckLinks.qml
+        qml/DeviceSyncPage.qml
 )
 
 set_target_properties(MTGTrackerDesktop PROPERTIES
