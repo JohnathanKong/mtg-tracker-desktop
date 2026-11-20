@@ -230,10 +230,12 @@ void sendToDevice(const QString &device, const QByteArray &payload, int deckCoun
     dcb.fInX = FALSE;
     dcb.fDsrSensitivity = FALSE;
     dcb.fAbortOnError = FALSE;
-    // ESP32-S3 native USB Serial/JTAG has no CTS/RTS hardware flow control.
-    // Do not assert modem lines when opening: they may trigger a boot reset.
-    dcb.fDtrControl = DTR_CONTROL_DISABLE;
-    dcb.fRtsControl = RTS_CONTROL_DISABLE;
+    // The ESP32-S3 native CDC endpoint expects an open terminal session.
+    // On Windows, DTR sometimes is not propagated to USB CDC unless RTS is
+    // configured too. Assert both as ordinary CDC control-line state while
+    // leaving hardware flow control DISABLED.
+    dcb.fDtrControl = DTR_CONTROL_ENABLE;
+    dcb.fRtsControl = RTS_CONTROL_ENABLE;
     if (!SetCommState(port.handle, &dcb))
         throw std::runtime_error("Cannot configure serial port at 115200 baud.");
 
