@@ -228,7 +228,7 @@ Item {
                                 font.bold: true
                             }
                             Text {
-                                text: "Names, colors, counters and custom tracker labels"
+                                text: "Decks, counters and uploaded commander artwork"
                                 color: "#9BA9BC"
                                 font.family: "Segoe UI"
                                 font.pixelSize: 11
@@ -384,7 +384,7 @@ Item {
                         font.pixelSize: 12
                     }
                     Text {
-                        text: "Artwork transfer, game-state updates, and on-device menus will be added later."
+                        text: "Commander artwork is now included. The device also stores its own game-long values."
                         color: "#C5A675"
                         font.family: "Segoe UI"
                         font.pixelSize: 11
