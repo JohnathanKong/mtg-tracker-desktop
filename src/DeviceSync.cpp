@@ -3,6 +3,10 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QFileInfo>
+#include <QImage>
+#include <QImageReader>
+#include <QVector>
 #include <QMetaObject>
 #include <QRegularExpression>
 #include <QtGlobal>
@@ -124,6 +128,59 @@ QByteArray buildPayload(const QVariantList &profiles, QString &problem) {
     return json;
 }
 
+struct ArtworkTransfer {
+    QString deckId;
+    QString fileId;
+    QByteArray pixels; // 180 x 180, RGB565 big-endian bytes
+};
+
+QVector<ArtworkTransfer> prepareArtwork(const QVariantList &profiles) {
+    QVector<ArtworkTransfer> output;
+    output.reserve(profiles.size());
+    for (const QVariant &value : profiles) {
+        const QVariantMap deck = value.toMap();
+        const QString source = deck.value(QStringLiteral("artwork")).toString();
+        if (source.isEmpty()) continue;
+        if (!QFileInfo::exists(source))
+            throw std::runtime_error("Artwork file missing: " +
+                                     QFileInfo(source).fileName().toStdString());
+        QImageReader reader(source);
+        reader.setAutoTransform(true);
+        const QSize declared = reader.size();
+        if (declared.isValid() &&
+            (declared.width() > 12000 || declared.height() > 12000))
+            throw std::runtime_error("Commander image exceeds 12,000 pixels per dimension.");
+        QImage image = reader.read();
+        if (image.isNull())
+            throw std::runtime_error("Could not decode commander artwork: " +
+                                     QFileInfo(source).fileName().toStdString());
+
+        image = image.scaled(180, 180, Qt::KeepAspectRatioByExpanding,
+                             Qt::SmoothTransformation);
+        const int cropX = (image.width() - 180) / 2;
+        const int cropY = (image.height() - 180) / 2;
+        image = image.copy(cropX, cropY, 180, 180).convertToFormat(QImage::Format_RGB32);
+        QByteArray pixels;
+        pixels.reserve(180 * 180 * 2);
+        for (int y = 0; y < 180; ++y) {
+            const QRgb *row = reinterpret_cast<const QRgb *>(image.constScanLine(y));
+            for (int x = 0; x < 180; ++x) {
+                const QRgb p = row[x];
+                const quint16 rgb = quint16(((qRed(p) >> 3) << 11) |
+                                          ((qGreen(p) >> 2) << 5) | (qBlue(p) >> 3));
+                pixels.append(char(rgb >> 8));
+                pixels.append(char(rgb & 0xFF));
+            }
+        }
+        ArtworkTransfer a;
+        a.deckId = deck.value(QStringLiteral("id")).toString();
+        a.fileId = hexCrc(crc32(a.deckId.toUtf8()));
+        a.pixels = std::move(pixels);
+        output.append(std::move(a));
+    }
+    return output;
+}
+
 #ifdef Q_OS_WIN
 struct PortHandle {
     HANDLE handle = INVALID_HANDLE_VALUE;
@@ -194,6 +251,7 @@ void expectReply(HANDLE port, const QString &expected, DWORD timeoutMs = 5000) {
 
 template<typename Progress>
 void sendToDevice(const QString &device, const QByteArray &payload, int deckCount,
+                  const QVector<ArtworkTransfer> &artworks,
                   const Progress &progress) {
     const QRegularExpression validPort(QStringLiteral("^COM[0-9]{1,3}$"),
                                        QRegularExpression::CaseInsensitiveOption);
@@ -290,7 +348,33 @@ void sendToDevice(const QString &device, const QByteArray &payload, int deckCoun
     expectReply(port.handle,
                 QStringLiteral("MTG1 STORED %1 %2").arg(deckCount).arg(checksum),
                 12000);
-    progress(100, QStringLiteral("Sync verified: %1 deck profiles stored.").arg(deckCount));
+    // Artwork is transferred after verified profile metadata, each deck in
+    // a separate CRC-checked atomic file transfer on ESP32-S3 SPIFFS.
+    for (int artIndex = 0; artIndex < artworks.size(); ++artIndex) {
+        const ArtworkTransfer &art = artworks[artIndex];
+        const QString artChecksum = hexCrc(crc32(art.pixels));
+        progress(96, QStringLiteral("Sending commander artwork %1 of %2...")
+                     .arg(artIndex + 1).arg(artworks.size()));
+        sendLine(port.handle, QStringLiteral("MTG1 ART %1 %2 %3")
+                 .arg(art.fileId).arg(art.pixels.size()).arg(artChecksum).toLatin1());
+        expectReply(port.handle, QStringLiteral("MTG1 OK"));
+        for (int offset = 0; offset < art.pixels.size(); offset += kChunkSize) {
+            const QByteArray chunk = art.pixels.mid(offset, kChunkSize);
+            sendLine(port.handle, "MTG1 CHUNK " + QByteArray::number(chunk.size()));
+            writeBytes(port.handle, chunk);
+            expectReply(port.handle, QStringLiteral("MTG1 NEXT %1")
+                        .arg(offset + chunk.size()), 5000);
+        }
+        sendLine(port.handle, "MTG1 COMMIT");
+        expectReply(port.handle,
+                    QStringLiteral("MTG1 ART STORED %1 %2")
+                        .arg(art.fileId, artChecksum), 12000);
+        progress(96 + int((4.0 * (artIndex + 1)) / artworks.size()),
+                 QStringLiteral("Artwork %1/%2 verified on device.")
+                   .arg(artIndex + 1).arg(artworks.size()));
+    }
+    progress(100, QStringLiteral("Sync verified: %1 decks, %2 artworks stored.")
+                      .arg(deckCount).arg(artworks.size()));
 }
 #endif
 } // namespace
@@ -377,7 +461,7 @@ void DeviceSync::sync(const QString &port, const QVariantList &decks) {
     struct Result { bool success = false; QString detail; };
     auto result = std::make_shared<Result>();
 
-    QThread *thread = QThread::create([this, port, payload, deckCount, result] {
+    QThread *thread = QThread::create([this, port, payload, decks, deckCount, result] {
         auto progress = [this](int percent, const QString &message) {
             QMetaObject::invokeMethod(this, [this, percent, message] {
                 updateProgress(percent, message);
@@ -386,9 +470,10 @@ void DeviceSync::sync(const QString &port, const QVariantList &decks) {
 
         try {
 #ifdef Q_OS_WIN
-            sendToDevice(port, payload, deckCount, progress);
+            QVector<ArtworkTransfer> artworks = prepareArtwork(decks);
+            sendToDevice(port, payload, deckCount, artworks, progress);
             result->success = true;
-            result->detail = QStringLiteral("Verified: %1 deck profiles stored on ESP32-S3.").arg(deckCount);
+            result->detail = QStringLiteral("Verified: %1 deck profiles and commander artwork stored on ESP32-S3.").arg(deckCount);
 #else
             result->detail = QStringLiteral("USB COM sync currently requires Windows.");
 #endif
