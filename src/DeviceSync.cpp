@@ -25,7 +25,7 @@
 
 namespace {
 constexpr int kMaxPayload = 65536;
-constexpr int kChunkSize = 256;
+constexpr int kChunkSize = 1024;
 
 quint32 crc32(const QByteArray &bytes) {
     quint32 crc = 0xFFFFFFFFu;
@@ -131,7 +131,7 @@ QByteArray buildPayload(const QVariantList &profiles, QString &problem) {
 struct ArtworkTransfer {
     QString deckId;
     QString fileId;
-    QByteArray pixels; // 180 x 180, RGB565 big-endian bytes
+    QByteArray pixels; // 360 x 360, RGB565 big-endian bytes
 };
 
 QVector<ArtworkTransfer> prepareArtwork(const QVariantList &profiles) {
@@ -155,16 +155,16 @@ QVector<ArtworkTransfer> prepareArtwork(const QVariantList &profiles) {
             throw std::runtime_error("Could not decode commander artwork: " +
                                      QFileInfo(source).fileName().toStdString());
 
-        image = image.scaled(180, 180, Qt::KeepAspectRatioByExpanding,
+        image = image.scaled(360, 360, Qt::KeepAspectRatioByExpanding,
                              Qt::SmoothTransformation);
-        const int cropX = (image.width() - 180) / 2;
-        const int cropY = (image.height() - 180) / 2;
-        image = image.copy(cropX, cropY, 180, 180).convertToFormat(QImage::Format_RGB32);
+        const int cropX = (image.width() - 360) / 2;
+        const int cropY = (image.height() - 360) / 2;
+        image = image.copy(cropX, cropY, 360, 360).convertToFormat(QImage::Format_RGB32);
         QByteArray pixels;
-        pixels.reserve(180 * 180 * 2);
-        for (int y = 0; y < 180; ++y) {
+        pixels.reserve(360 * 360 * 2);
+        for (int y = 0; y < 360; ++y) {
             const QRgb *row = reinterpret_cast<const QRgb *>(image.constScanLine(y));
-            for (int x = 0; x < 180; ++x) {
+            for (int x = 0; x < 360; ++x) {
                 const QRgb p = row[x];
                 const quint16 rgb = quint16(((qRed(p) >> 3) << 11) |
                                           ((qGreen(p) >> 2) << 5) | (qBlue(p) >> 3));
