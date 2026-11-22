@@ -6,6 +6,8 @@
 #include <QFileInfo>
 #include <QImage>
 #include <QImageReader>
+#include <QPainter>
+#include <QColor>
 #include <QVector>
 #include <QMetaObject>
 #include <QRegularExpression>
@@ -155,11 +157,26 @@ QVector<ArtworkTransfer> prepareArtwork(const QVariantList &profiles) {
             throw std::runtime_error("Could not decode commander artwork: " +
                                      QFileInfo(source).fileName().toStdString());
 
-        image = image.scaled(360, 360, Qt::KeepAspectRatioByExpanding,
-                             Qt::SmoothTransformation);
-        const int cropX = (image.width() - 360) / 2;
-        const int cropY = (image.height() - 360) / 2;
-        image = image.copy(cropX, cropY, 360, 360).convertToFormat(QImage::Format_RGB32);
+        // The round game HUD now reserves the upper half for the art. Fit
+        // the entire uploaded image into that banner WITHOUT center-cropping.
+        // A dimmed fill drawn from the same artwork avoids empty side bars
+        // when the original image is a tall card portrait.
+        QImage banner(360, 360, QImage::Format_RGB32);
+        banner.fill(QColor(8, 17, 22));
+        QPainter painter(&banner);
+        painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+        QImage cover = image.scaled(360, 205, Qt::KeepAspectRatioByExpanding,
+                                    Qt::SmoothTransformation);
+        const int coverX = (cover.width() - 360) / 2;
+        const int coverY = (cover.height() - 205) / 2;
+        painter.drawImage(0, 0, cover.copy(coverX, coverY, 360, 205));
+        painter.fillRect(0, 0, 360, 205, QColor(6, 13, 20, 140));
+        const QImage fitted = image.scaled(346, 184, Qt::KeepAspectRatio,
+                                           Qt::SmoothTransformation);
+        painter.drawImage((360 - fitted.width()) / 2,
+                          (194 - fitted.height()) / 2, fitted);
+        painter.end();
+        image = std::move(banner);
         QByteArray pixels;
         pixels.reserve(360 * 360 * 2);
         for (int y = 0; y < 360; ++y) {
