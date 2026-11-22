@@ -122,7 +122,7 @@ QByteArray buildPayload(const QVariantList &profiles, QString &problem) {
     }).toJson(QJsonDocument::Compact);
 
     if (json.size() > kMaxPayload) {
-        problem = QStringLiteral("Deck data exceeds 64 KB. Artwork is not included in v1.");
+        problem = QStringLiteral("Deck metadata exceeds the 64 KB transfer limit.");
         return {};
     }
     return json;
@@ -473,7 +473,16 @@ void DeviceSync::sync(const QString &port, const QVariantList &decks) {
             QVector<ArtworkTransfer> artworks = prepareArtwork(decks);
             sendToDevice(port, payload, deckCount, artworks, progress);
             result->success = true;
-            result->detail = QStringLiteral("Verified: %1 deck profiles and commander artwork stored on ESP32-S3.").arg(deckCount);
+            if (artworks.isEmpty()) {
+                result->detail = QStringLiteral(
+                    "Verified: %1 deck profiles, 0 commander images. "
+                    "Open a deck, import its artwork, save it, and sync again.")
+                    .arg(deckCount);
+            } else {
+                result->detail = QStringLiteral(
+                    "Verified: %1 deck profiles and %2 commander images stored on ESP32-S3.")
+                    .arg(deckCount).arg(artworks.size());
+            }
 #else
             result->detail = QStringLiteral("USB COM sync currently requires Windows.");
 #endif
