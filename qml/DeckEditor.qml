@@ -18,11 +18,9 @@ Item {
     property bool creating: profileId.length === 0
 
     property var basicTrackers: [
-        { id: "life", label: "Life total", icon: "♥" },
         { id: "poison", label: "Poison", icon: "☠" },
         { id: "rad", label: "Radiation", icon: "☢" },
         { id: "commander_damage", label: "Commander damage", icon: "⚔" },
-        { id: "commander_casts", label: "Casts / tax", icon: "♜" },
         { id: "commander_deaths", label: "Commander deaths", icon: "↻" }
     ]
     property var mechanicTrackers: [
@@ -47,7 +45,7 @@ Item {
         { id: "turn", label: "Turn number", icon: "⧖" }
     ]
     property var groups: [
-        { title: "Always Track", description: "Useful in almost every Commander game.", symbol: "✦", items: basicTrackers },
+        { title: "Common Counters", description: "Choose only the optional counters this deck needs.", symbol: "✦", items: basicTrackers },
         { title: "Deck Mechanics", description: "Include only what your deck actually uses.", symbol: "ϟ", items: mechanicTrackers },
         { title: "Game States", description: "Situational effects and player statuses.", symbol: "♛", items: statusTrackers },
         { title: "Extras", description: "Optional utilities for your deck.", symbol: "⊕", items: extraTrackers }
@@ -63,7 +61,9 @@ Item {
         artworkUrl = d.artworkUrl || ""
         // Life / casts / tax are always visible on the device. Optional
         // counters must be deliberately selected per deck.
-        trackers = d.id ? (d.trackers || []).slice() : []
+        trackers = d.id ? (d.trackers || []).filter(function(id) {
+            return id !== "life" && id !== "commander_casts"
+        }) : []
         colors = (d.colors || []).slice()
         customTrackers = (d.customTrackers || []).map(function(c) { return {id:c.id, label:c.label} })
         newCustomName.text = ""
@@ -633,7 +633,7 @@ Item {
                     font.bold: true
                 }
                 Text {
-                    text: "Choose only the trackers this deck needs. Opponents can still give you poison or rad counters."
+                    text: "Life, commander casts and tax always appear. Select only the optional counters this deck needs."
                     color: "#A4B0BF"
                     font.family: "Segoe UI"
                     font.pixelSize: 12
