@@ -20,7 +20,6 @@ Item {
     property var basicTrackers: [
         { id: "poison", label: "Poison", icon: "☠" },
         { id: "rad", label: "Radiation", icon: "☢" },
-        { id: "commander_damage", label: "Commander damage", icon: "⚔" },
         { id: "commander_deaths", label: "Commander deaths", icon: "↻" }
     ]
     property var mechanicTrackers: [
