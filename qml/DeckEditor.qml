@@ -28,6 +28,7 @@ Item {
     property var mechanicTrackers: [
         { id: "experience", label: "Experience", icon: "✧" },
         { id: "energy", label: "Energy", icon: "ϟ" },
+        { id: "treasures", label: "Treasures", icon: "✦" },
         { id: "storm", label: "Storm count", icon: "◉" },
         { id: "tickets", label: "Tickets", icon: "▱" },
         { id: "speed", label: "Speed", icon: "◴" },
