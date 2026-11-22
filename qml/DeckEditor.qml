@@ -61,8 +61,9 @@ Item {
         deckListUrl.text = d.deckUrl || ""
         artworkPath = d.artwork || ""
         artworkUrl = d.artworkUrl || ""
-        trackers = d.id ? (d.trackers || []).slice() :
-            ["life","poison","rad","commander_damage","commander_casts","commander_deaths"]
+        // Life / casts / tax are always visible on the device. Optional
+        // counters must be deliberately selected per deck.
+        trackers = d.id ? (d.trackers || []).slice() : []
         colors = (d.colors || []).slice()
         customTrackers = (d.customTrackers || []).map(function(c) { return {id:c.id, label:c.label} })
         newCustomName.text = ""
