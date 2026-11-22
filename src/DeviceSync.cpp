@@ -326,6 +326,18 @@ void sendToDevice(const QString &device, const QByteArray &payload, int deckCoun
     }
     if (!handshook) throw std::runtime_error("ESP32-S3 did not complete handshake.");
 
+    // Distinguish a stale firmware image from an artwork transfer failure.
+    // Require the device to advertise the exact image format and USB chunk size.
+    sendLine(port.handle, "MTG1 CAPS");
+    const QString capabilities = readReply(port.handle, 5000);
+    if (capabilities != QStringLiteral("MTG1 CAPS ART RGB565 360 360 1024")) {
+        throw std::runtime_error(
+            QStringLiteral("ESP32-S3 artwork protocol mismatch: device replied '%1'. "
+                           "Expected RGB565 360x360 artwork and 1024-byte chunks. "
+                           "The flashed firmware and desktop application do not agree.")
+                .arg(capabilities).toStdString());
+    }
+
     const QString checksum = hexCrc(crc32(payload));
     progress(5, QStringLiteral("Device connected; preparing transfer..."));
     sendLine(port.handle,
